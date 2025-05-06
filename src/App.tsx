@@ -14,6 +14,7 @@ import DeactivateRoleScreen from './screens/DeactivateRoleScreen';
 
 // Import store and actions
 import store, { setUserRoles, RootState } from './store';
+import { fetchUserRolesFromAPI, parseJwt } from './getUserData/loadUser';
 import { setAuthToken } from './api/apiClient';
 
 type RootStackParamList = {
@@ -117,40 +118,65 @@ const LoginScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Login
 };
 
 const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>) => {
-  const { user, clearSession, getCredentials } = useAuth0();
+  const { user, getCredentials } = useAuth0();
   const dispatch = useDispatch();
   const userRoles = useSelector((state: RootState) => state.userRoles.redux_userRoles);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   
-  // Ensure we have a user and token
+  // Fetch and process user roles when user changes
   useEffect(() => {
-    const setupUser = async () => {
+    const fetchUserRole = async () => {
       if (user) {
         try {
-          // Get user credentials
+          setIsLoading(true);
+          // Get token info
           const credentials = await getCredentials();
+          
           if (credentials?.accessToken) {
+            // Set the access token for all API requests
             setAuthToken(credentials.accessToken);
             
-            // Set test admin role for specific user - temporary solution
-            if (user.email === 'fung.yuri.intern@gmail.com') {
-              dispatch(setUserRoles(['e_admin_portal']));
+            // Log the token's payload to help debugging
+            const tokenPayload = parseJwt(credentials.accessToken);
+            console.log('Token payload (parsed):', JSON.stringify(tokenPayload));
+            
+            // Use enhanced role fetching that uses Auth0 Management API like web app
+            if (user.sub) {
+              console.log('Fetching roles for user:', user.sub);
+              try {
+                const roles = await fetchUserRolesFromAPI(user.sub, credentials.accessToken);
+                console.log('Final roles assigned:', roles);
+                
+                // We should always have at least one role (a_Registered_User)
+                dispatch(setUserRoles(roles));
+              } catch (roleError) {
+                console.error('Error fetching roles:', roleError);
+                // For specific test user, assign admin role even if fetch fails
+                if (user.email === 'fung.yuri.intern@gmail.com') {
+                  console.log('Setting test admin role as fallback');
+                  dispatch(setUserRoles(['e_admin_portal']));
+                } else {
+                  // Otherwise, use the default registered user role
+                  dispatch(setUserRoles(['a_Registered_User']));
+                }
+              }
             }
           }
         } catch (error) {
-          console.error('Error setting up user:', error);
+          console.log('Error setting up user:', error);
+          dispatch(setUserRoles(['a_Registered_User']));
         } finally {
           setIsLoading(false);
         }
       } else {
-        // No user, go to login
-        navigation.replace('Login');
+        dispatch(setUserRoles([]));
+        setIsLoading(false);
       }
     };
     
-    setupUser();
-  }, [user, getCredentials, dispatch, navigation]);
+    fetchUserRole();
+  }, [user, dispatch, getCredentials]);
 
   const onLogout = async () => {
     try {
@@ -172,7 +198,8 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
         '@auth_access_token',
         '@auth_id_token',
         '@auth_refresh_token',
-        '@auth_credentials'
+        '@auth_credentials',
+        '@auth0_management_token'
       ]);
       
       // Navigate to login - session clearing will happen there
@@ -190,19 +217,23 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
   // Check for admin role
   const isAdmin = userRoles.includes('e_admin_portal');
   
-  // Check for any active role
+  // Check for any active role - now using exact role names from Auth0
   const hasRole = userRoles.some(role => 
     role === 'b_Individual_Payer' || 
     role === 'c_Officer' || 
     role === 'd_Government_agent'
   );
 
+  // Check if only registered user (no other roles)
+  const isOnlyRegisteredUser = userRoles.length === 1 && userRoles.includes('a_Registered_User');
+
   // Get friendly role name for display
   const getRoleFriendlyName = () => {
     if (userRoles.includes('e_admin_portal')) return 'Admin';
     if (userRoles.includes('d_Government_agent')) return 'Government Agent';
     if (userRoles.includes('c_Officer')) return 'Business Officer';
-    if (userRoles.includes('b_Individual_Payer')) return 'Individual Tax Payer'; 
+    if (userRoles.includes('b_Individual_Payer')) return 'Individual Tax Payer';
+    if (userRoles.includes('a_Registered_User')) return 'Registered User';
     return 'Registered User';
   };
 
@@ -233,6 +264,7 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
           {user.nickname && <Text style={styles.profileText}>Nickname: {user.nickname}</Text>}
           {user.email && <Text style={styles.profileText}>Email: {user.email}</Text>}
           {user.sub && <Text style={styles.profileText}>User ID: {user.sub}</Text>}
+          <Text style={styles.profileText}>Assigned Roles: {userRoles.join(', ') || 'None'}</Text>
         </View>
       ) : (
         <Text>You are not logged in</Text>
@@ -250,12 +282,14 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
         ) : (
           // Show regular buttons for non-admin users
           <>
-            {!hasRole && (
+            {/* Only show Activate Role button for registered users with no other roles */}
+            {isOnlyRegisteredUser && (
               <Button 
                 title="Activate Role" 
                 onPress={() => navigation.navigate('ActivateRole')} 
               />
             )}
+            {/* Only show Deactivate Role button if user has an active role (not just registered) */}
             {hasRole && (
               <Button 
                 title="Deactivate Role" 
@@ -271,7 +305,6 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
   );
 };
 
-// Rest of your navigation code stays the same
 const MainApp = () => {
   return (
     <NavigationContainer>
