@@ -1,8 +1,8 @@
 import axios from 'axios';
 
 // Update the backend URL to point to your local Flask server
-const backend = 'http://192.168.0.60:6060';
-
+// const backend = 'http://192.168.0.60:6060';
+const backend = 'http://localhost:6060';
 // Create axios instance with some default configurations
 const apiClient = axios.create({
   baseURL: backend,

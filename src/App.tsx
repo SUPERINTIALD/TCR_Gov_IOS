@@ -7,12 +7,22 @@ import { Provider, useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import config from '../auth0-configuration';
 
-// Import screens
+
+// Import IndividualPayer
+import IndividualPayerScreen from './Individual/individualPayer';
+// Import admin
 import AdminScreen from './admin/admin';
+
+// Import business officer exclusive
+import BusinessScreen from './businessOfficerExclusive/business';
+
+// Import government agent exclusive
+import GovernmentAgentScreen from './governmentAgent/government';
+// Import screens
 import ActivateRoleScreen from './screens/ActivateRoleScreen';
 import DeactivateRoleScreen from './screens/DeactivateRoleScreen';
 
-// Import store and actions
+
 import store, { setUserRoles, RootState } from './store';
 import { fetchUserRolesFromAPI, parseJwt } from './getUserData/loadUser';
 import { setAuthToken } from './api/apiClient';
@@ -45,11 +55,12 @@ const LoginScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Login
         console.log('Error checking logout state:', error);
       }
     };
-    
+
     checkLogoutState();
-    
+
     // If user is already authenticated, go to home screen
     if (user) {
+      console.log('User is authenticated, navigating to Home...');
       navigation.replace('Home');
     }
   }, [user, navigation, clearSession]);
@@ -153,13 +164,13 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
               } catch (roleError) {
                 console.error('Error fetching roles:', roleError);
                 // For specific test user, assign admin role even if fetch fails
-                if (user.email === 'fung.yuri.intern@gmail.com') {
-                  console.log('Setting test admin role as fallback');
-                  dispatch(setUserRoles(['e_admin_portal']));
-                } else {
-                  // Otherwise, use the default registered user role
-                  dispatch(setUserRoles(['a_Registered_User']));
-                }
+                // if (user.email === 'fung.yuri.intern@gmail.com') {
+                //   console.log('Setting test admin role as fallback');
+                //   dispatch(setUserRoles(['e_admin_portal']));
+                // } else {
+                //   // Otherwise, use the default registered user role
+                //   dispatch(setUserRoles(['a_Registered_User']));
+                // }
               }
             }
           }
@@ -177,6 +188,16 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
     
     fetchUserRole();
   }, [user, dispatch, getCredentials]);
+
+  useEffect(() => {
+    if (!user) {
+      console.log('User is not logged in, navigating to Login...');
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Login' }],
+      });
+    }
+  }, [user, navigation]);
 
   const onLogout = async () => {
     try {
@@ -215,6 +236,9 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
   };
 
   // Check for admin role
+  const isIndividualPayer = userRoles.includes('b_Individual_Payer');
+  const isBusinessOfficer = userRoles.includes('c_Officer');
+  const isGovernmentAgent = userRoles.includes('d_Government_agent');
   const isAdmin = userRoles.includes('e_admin_portal');
   
   // Check for any active role - now using exact role names from Auth0
@@ -279,9 +303,37 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
             title="Go to Admin Dashboard" 
             onPress={() => navigation.navigate('Admin')} 
           />
-        ) : (
+        ) : 
+        
+        isBusinessOfficer ? (
+          // Show Business Officer Screen button if user has business officer role
+          <Button 
+            title="Go to Business Officer Dashboard" 
+            onPress={() => navigation.navigate('BusinessOfficer')} 
+          />
+        ) :
+        
+        (
           // Show regular buttons for non-admin users
           <>
+            {/* Add Government Agent button if the user has the Government Agent role */}
+            {isGovernmentAgent && (
+              <Button 
+                title="Go to Government Dashboard" 
+                onPress={() => navigation.navigate('GovernmentAgent')} 
+              />
+            )}
+            {/* Add Individual Payer button if the user has the Individual Payer role */}
+            {isIndividualPayer && (
+              <Button 
+                title="Go to Individual Dashboard" 
+                onPress={() => navigation.navigate('IndividualPayer')} 
+              />
+            )}
+
+
+
+
             {/* Only show Activate Role button for registered users with no other roles */}
             {isOnlyRegisteredUser && (
               <Button 
@@ -296,6 +348,7 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
                 onPress={() => navigation.navigate('DeactivateRole')} 
               />
             )}
+           
           </>
         )}
       </View>
@@ -314,6 +367,11 @@ const MainApp = () => {
         <Stack.Screen name="ActivateRole" component={ActivateRoleScreen} options={{ title: 'Activate Role' }}/>
         <Stack.Screen name="DeactivateRole" component={DeactivateRoleScreen} options={{ title: 'Deactivate Role' }}/>
         <Stack.Screen name="Admin" component={AdminScreen} options={{ title: 'Admin Dashboard' }}/>
+        <Stack.Screen name="BusinessOfficer" component={BusinessScreen} options={{ title: 'Business Dashboard' }}/>
+        <Stack.Screen name="GovernmentAgent" component={GovernmentAgentScreen} options={{ title: 'Government Agent Dashboard' }}/>
+        <Stack.Screen name="IndividualPayer" component={IndividualPayerScreen} options={{ title: 'Individual Dashboard' }} />
+        {/* <Stack.Screen name="FileTax" component={FileTaxScreen} options={{ title: 'File Taxes' }} />
+        <Stack.Screen name="TaxStatus" component={TaxStatusScreen} options={{ title: 'Tax Status' }} /> */}
       </Stack.Navigator>
     </NavigationContainer>
   );

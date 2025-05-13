@@ -5,6 +5,7 @@ import { useNavigation } from '@react-navigation/native';
 import { submitActivation, setAuthToken, checkBackendConnection } from '../api/apiClient';
 
 const ActivateRoleScreen = () => {
+  const backend = 'http://localhost:6060';
   const navigation = useNavigation();
   const { user, getCredentials } = useAuth0();
   const [isLoading, setIsLoading] = useState(false);
@@ -22,7 +23,7 @@ const ActivateRoleScreen = () => {
         const connectionStatus = await checkBackendConnection();
         if (connectionStatus.status === 200) {
           setBackendStatus('Connected');
-          console.log("Successfully connected to backend at http://192.168.0.60:6060");
+          console.log("Successfully connected to backend at ", backend);
         } else {
           setBackendStatus(`Error: ${connectionStatus.status}`);
           console.error("Backend connection failed:", connectionStatus.error);
@@ -126,7 +127,7 @@ const ActivateRoleScreen = () => {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>
-          Cannot connect to local backend server (http://192.168.0.60:6060)
+          Cannot connect to local backend server
         </Text>
         <Text style={styles.errorDetail}>
           Make sure your backend server is running and accessible from your device.
@@ -158,7 +159,7 @@ const ActivateRoleScreen = () => {
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Select a Role to Activate</Text>
-      {backendStatus === 'Connected' && <Text style={styles.connectedText}>Connected to: http://192.168.0.60:6060</Text>}
+      {backendStatus === 'Connected' && <Text style={styles.connectedText}>Connected to: {backend}</Text>}
       {isLoading ? (
         <ActivityIndicator size="large" color="#007AFF" />
       ) : (
