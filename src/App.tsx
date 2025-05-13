@@ -41,7 +41,7 @@ const LoginScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Login
   const { authorize, user, isLoading, clearSession } = useAuth0();
   const [processingAuth, setProcessingAuth] = useState(false);
 
-  // Check if we're coming from logout and need to clear session
+
   useEffect(() => {
     const checkLogoutState = async () => {
       try {
@@ -201,20 +201,15 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
 
   const onLogout = async () => {
     try {
-      // Start logout process
+
       setIsLoggingOut(true);
       console.log('Starting logout process...');
-      
-      // Mark that we need to clear session
+  
       await AsyncStorage.setItem('@auth_clear_session', 'true');
-      
-      // Clear API token
       setAuthToken('');
-      
-      // Clear user roles
       dispatch(setUserRoles([]));
       
-      // Clear local storage
+
       await AsyncStorage.multiRemove([
         '@auth_access_token',
         '@auth_id_token',
@@ -222,8 +217,7 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
         '@auth_credentials',
         '@auth0_management_token'
       ]);
-      
-      // Navigate to login - session clearing will happen there
+    
       navigation.reset({
         index: 0,
         routes: [{ name: 'Login' }],
@@ -235,7 +229,7 @@ const HomeScreen = ({ navigation }: StackScreenProps<RootStackParamList, 'Home'>
     }
   };
 
-  // Check for admin role
+  // Check for role
   const isIndividualPayer = userRoles.includes('b_Individual_Payer');
   const isBusinessOfficer = userRoles.includes('c_Officer');
   const isGovernmentAgent = userRoles.includes('d_Government_agent');
